@@ -13,6 +13,13 @@ if [ -z "${1:-}" ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
   exit 0
 fi
 
+DIRTY=$(git status --porcelain | grep -v '^ *M Cargo\.\(toml\|lock\)$' || true)
+if [ -n "$DIRTY" ]; then
+  echo "Working tree is dirty:"
+  echo "$DIRTY"
+  exit 1
+fi
+
 VERSION="$1"
 TAG="v$VERSION"
 
@@ -25,24 +32,32 @@ read -r NEW_MAJ NEW_MIN NEW_PAT <<< "$(version_to_tuple "$VERSION")"
 
 if [ "$NEW_MAJ" -lt "$CUR_MAJ" ] || \
    { [ "$NEW_MAJ" -eq "$CUR_MAJ" ] && [ "$NEW_MIN" -lt "$CUR_MIN" ]; } || \
-   { [ "$NEW_MAJ" -eq "$CUR_MAJ" ] && [ "$NEW_MIN" -eq "$CUR_MIN" ] && [ "$NEW_PAT" -le "$CUR_PAT" ]; }; then
-  echo "Version $VERSION is not greater than current version $CURRENT"
+   { [ "$NEW_MAJ" -eq "$CUR_MAJ" ] && [ "$NEW_MIN" -eq "$CUR_MIN" ] && [ "$NEW_PAT" -lt "$CUR_PAT" ]; }; then
+  echo "Version $VERSION is older than current version $CURRENT"
   exit 1
 fi
 
-if git rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "Tag $TAG already exists"
-  exit 1
+if [ "$CURRENT" != "$VERSION" ]; then
+  sed "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
 fi
-
-sed "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
 
 cargo test
-git add Cargo.toml Cargo.lock
-git commit -m "Bump version to $VERSION"
-git tag "$TAG"
+
+if [ -n "$(git status --porcelain Cargo.toml Cargo.lock)" ]; then
+  git add Cargo.toml Cargo.lock
+  git commit -m "Bump version to $VERSION"
+fi
+
+if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+  git tag "$TAG"
+fi
+
 git push origin main "$TAG"
-cargo publish
+if cargo search jqrutils --limit 1 2>/dev/null | grep -q "\"$VERSION\""; then
+  echo "v$VERSION already on crates.io, skipping publish"
+else
+  cargo publish
+fi
 
 echo ""
 echo "Released $TAG"
