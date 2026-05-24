@@ -40,9 +40,4 @@ brew install jqrutils
 bin/release 0.0.1
 ```
 
-This runs tests, tags, and pushes. Then update the Homebrew tap:
-
-```sh
-cd ../homebrew-jqrutils
-bin/update 0.0.1
-```
+This runs tests, tags, pushes, and attempts to update the Homebrew tap.
