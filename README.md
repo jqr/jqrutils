@@ -2,23 +2,26 @@
 
 Small Unix command-line tools.
 
-### quiet
-
+### quiet - suppress output unless it fails
 
 ```sh
-# quiet: Suppress command output unless it fails (or takes too long).
-quiet make build          # exit 0 means it will hide all output
-quiet -t 5 make build     # after 5 seconds it will start streaming
+quiet rsync -a src/ dest/        # silent on success, shows output on failure
+quiet -t 10 docker build .       # starts streaming after 10s if still running
+```
 
-# errfail: Any stderr output forces non-zero exit code if would've exited 0.
-errfail make build        # wrote to stderr? exit 2
+### errfail - treat stderr as failure
 
-# prefix: Prefix each line of stdout and stderr with a label.
-prefix "[build]" make build           # both stdout and stderr
-prefix --stdout "[build]" make build  # only stdout
-prefix --stderr "[build]" make build  # only stderr
+```sh
+errfail terraform apply           # exit 2 if it printed warnings but "succeeded"
+quiet errfail make build          # silent unless it fails or warns
+```
 
-quiet errfail make build  # composable
+### prefix - label output lines
+
+```sh
+prefix "[api]" ./start-api &
+prefix "[web]" ./start-web &      # interleaved output, easy to tell apart
+prefix --stderr "[warn]" make     # only prefix stderr, leave stdout alone
 ```
 
 ## Install
