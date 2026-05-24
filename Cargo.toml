@@ -1,6 +1,6 @@
 [package]
 name = "jqrutils"
-version = "0.0.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["Elijah Miller <elijah.miller@gmail.com>"]
 description = "Small Unix utilities: quiet, errfail"
