@@ -13,7 +13,12 @@ quiet -t 5 make build     # after 5 seconds it will start streaming
 # errfail: Any stderr output forces non-zero exit code if would've exited 0.
 errfail make build        # wrote to stderr? exit 2
 
-quiet errfail make build  # composbale
+# prefix: Prefix each line of stdout and stderr with a label.
+prefix "[build]" make build           # both stdout and stderr
+prefix --stdout "[build]" make build  # only stdout
+prefix --stderr "[build]" make build  # only stderr
+
+quiet errfail make build  # composable
 ```
 
 ## Install
