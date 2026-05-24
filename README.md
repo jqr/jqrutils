@@ -31,7 +31,7 @@ Or via Homebrew on macOS:
 
 ```sh
 brew tap jqr/jqrutils
-brew install quiet errfail
+brew install jqrutils
 ```
 
 ## Release
