@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+CURRENT=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+
+if [ -z "${1:-}" ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  echo "Current version: $CURRENT"
+  echo "Usage: bin/release <major.minor.patch>"
+  echo "Example: bin/release 0.2.0"
+  echo ""
+  echo "Versions follow semver (https://semver.org)"
+  exit 0
+fi
+
+VERSION="$1"
+TAG="v$VERSION"
+
+version_to_tuple() {
+  echo "$1" | awk -F. '{ printf "%d %d %d", $1, $2, $3 }'
+}
+
+read -r CUR_MAJ CUR_MIN CUR_PAT <<< "$(version_to_tuple "$CURRENT")"
+read -r NEW_MAJ NEW_MIN NEW_PAT <<< "$(version_to_tuple "$VERSION")"
+
+if [ "$NEW_MAJ" -lt "$CUR_MAJ" ] || \
+   { [ "$NEW_MAJ" -eq "$CUR_MAJ" ] && [ "$NEW_MIN" -lt "$CUR_MIN" ]; } || \
+   { [ "$NEW_MAJ" -eq "$CUR_MAJ" ] && [ "$NEW_MIN" -eq "$CUR_MIN" ] && [ "$NEW_PAT" -le "$CUR_PAT" ]; }; then
+  echo "Version $VERSION is not greater than current version $CURRENT"
+  exit 1
+fi
+
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+  echo "Tag $TAG already exists"
+  exit 1
+fi
+
+sed "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
+
+cargo test
+git add Cargo.toml Cargo.lock
+git commit -m "Bump version to $VERSION"
+git tag "$TAG"
+git push origin main "$TAG"
+cargo publish
+
+echo ""
+echo "Released $TAG"
+echo "Tarball: https://github.com/jqr/jqrutils/archive/refs/tags/$TAG.tar.gz"
+
+HOMEBREW_UPDATE="../homebrew-jqrutils/bin/update"
+if [ -x "$HOMEBREW_UPDATE" ]; then
+  echo ""
+  echo "Updating Homebrew tap..."
+  "$HOMEBREW_UPDATE" "$VERSION"
+else
+  echo ""
+  echo "Don't forget to update the Homebrew tap!"
+fi
